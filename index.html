@@ -1,0 +1,1140 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>[hidden]{display:none!important}html{color-scheme:dark}body{margin:0}</style>
+<title>Snake</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  /* Layout: a handheld console centered in the page. LCD screen on top, settings and controls below.
+     One committed look (monochrome LCD), so a single theme is set explicitly. */
+  :root {
+    --bg: #18222b;
+    --shell: #27343f;
+    --shell-edge: #141c23;
+    --lcd: #a8ba84;
+    --lcd-dim: #9aad77;
+    --ink: #233021;
+    --btn: #c8442f;
+    --btn-edge: #8f2d1d;
+    --btn-ink: #ffffff;
+    --text: #dfe7d2;
+    --muted: #93a58f;
+    --focus: #f2d36b;
+    --font-display: 'Silkscreen', 'Courier New', monospace;
+    --font-body: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.5;
+    padding-block: 24px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+
+  .app {
+    max-width: 440px;
+    margin-inline: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  header { display: flex; flex-direction: column; gap: 4px; }
+  .title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .fullscreen-btn { flex: 0 0 auto; font-size: 11px; padding: 8px 10px; }
+  .fullscreen-btn:disabled { opacity: 0.45; cursor: default; }
+  .lcd:fullscreen {
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    min-height: 100vh;
+    padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 0;
+    box-shadow: none;
+    background: var(--lcd);
+  }
+  .lcd:fullscreen .hud { width: min(100%, 720px); box-sizing: border-box; align-self: center; }
+  .lcd:fullscreen .board {
+    width: min(100%, calc(100vh - 120px));
+    max-width: min(100%, calc(100vh - 120px));
+    margin-inline: auto;
+    flex: 0 1 auto;
+  }
+  .lcd:fullscreen .board canvas { width: 100%; height: auto; }
+  h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 44px;
+    line-height: 1.1;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-wrap: balance;
+  }
+  .sub { margin: 0; color: var(--muted); }
+
+  .console {
+    background: var(--shell);
+    border: 1px solid var(--shell-edge);
+    border-radius: 14px 14px 44px 14px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    box-shadow: 0 3px 0 var(--shell-edge);
+  }
+
+  .lcd {
+    background: var(--lcd);
+    color: var(--ink);
+    border-radius: 6px;
+    padding: 10px;
+    box-shadow: inset 0 0 0 2px var(--lcd-dim);
+  }
+
+  .hud {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+    border-bottom: 2px solid var(--ink);
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 12px;
+  }
+  .hud div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .hud div:last-child { align-items: flex-end; }
+  .hud b {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .board { position: relative; touch-action: none; }
+  .board canvas {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+  }
+  #board { image-rendering: pixelated; }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 16px;
+    text-align: center;
+    background: color-mix(in srgb, var(--lcd) 90%, transparent);
+  }
+  .overlay h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 26px;
+    line-height: 1.1;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-wrap: balance;
+  }
+  .overlay p { margin: 0; max-width: 30ch; font-size: 13px; }
+
+  .btn {
+    font-family: var(--font-display);
+    font-size: 14px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: var(--btn);
+    color: var(--btn-ink);
+    border: 0;
+    border-radius: 4px;
+    padding: 10px 18px;
+    box-shadow: 0 3px 0 var(--btn-edge);
+    cursor: pointer;
+  }
+  .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--btn-edge); }
+  .btn:disabled { opacity: 0.45; cursor: default; transform: none; box-shadow: 0 3px 0 var(--btn-edge); }
+  .btn.wide { width: 100%; }
+
+  button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+  .controls { display: flex; flex-direction: column; gap: 16px; }
+
+  .settings {
+    display: grid;
+    grid-template-columns: 92px minmax(0, 1fr);
+    gap: 8px 10px;
+    align-items: center;
+  }
+  .setting-label {
+    font-family: var(--font-display);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .seg { display: flex; gap: 6px; min-width: 0; }
+  .opt {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--muted);
+    border-radius: 4px;
+    padding: 7px 6px;
+    cursor: pointer;
+  }
+  .opt[aria-checked="true"] { background: var(--text); color: var(--shell); border-color: var(--text); }
+  .opt:disabled { opacity: 0.5; cursor: default; }
+
+  .pads { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
+  .padwrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .cap {
+    font-family: var(--font-display);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .dpad {
+    display: grid;
+    grid-template-columns: repeat(3, 58px);
+    grid-template-rows: repeat(3, 58px);
+    gap: 4px;
+    justify-content: center;
+  }
+  .pads.duo .dpad { grid-template-columns: repeat(3, 46px); grid-template-rows: repeat(3, 46px); }
+  .pad {
+    font-size: 18px;
+    color: var(--text);
+    background: var(--shell-edge);
+    border: 1px solid var(--muted);
+    border-radius: 6px;
+    cursor: pointer;
+    touch-action: none;
+  }
+  .pad:active { background: var(--muted); color: var(--shell-edge); }
+  .pad[data-dir="up"] { grid-column: 2; grid-row: 1; }
+  .pad[data-dir="left"] { grid-column: 1; grid-row: 2; }
+  .pad[data-dir="right"] { grid-column: 3; grid-row: 2; }
+  .pad[data-dir="down"] { grid-column: 2; grid-row: 3; }
+
+  @media (hover: hover) and (pointer: fine) {
+    .pads { display: none; }
+  }
+
+  .hint { margin: 0; color: var(--muted); font-size: 13px; }
+  kbd {
+    font-family: var(--font-body);
+    font-size: 12px;
+    border: 1px solid var(--muted);
+    border-radius: 3px;
+    padding: 0 4px;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .btn, .opt, .pad { transition: background-color 0.12s, color 0.12s; }
+  }
+</style>
+</head>
+<body>
+
+<main class="app" id="app">
+  <header>
+    <div class="title-row">
+      <h1>Snake</h1>
+      <button class="btn fullscreen-btn" id="fullscreen-btn" type="button" aria-pressed="false">Pantalla completa</button>
+    </div>
+    <p class="sub">Come, crece, no te muerdas la cola.</p>
+  </header>
+
+  <section class="console" aria-label="Juego">
+    <div class="lcd">
+      <div class="hud">
+        <div><span id="h1-l">Puntos</span><b id="h1-v">0</b></div>
+        <div><span>Nivel</span><b id="h2-v">1</b></div>
+        <div><span id="h3-l">Récord</span><b id="h3-v">0</b></div>
+      </div>
+      <div class="board" id="board-wrap">
+        <canvas id="board" width="400" height="400" aria-label="Tablero de 20 por 20"></canvas>
+        <canvas id="board3d" aria-label="Tablero en 3D" hidden></canvas>
+        <div class="overlay" id="overlay">
+          <h2 id="ov-title">Lista</h2>
+          <p id="ov-text" role="status">Come las cruces para crecer.</p>
+          <button class="btn" id="ov-btn" type="button">Jugar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="settings">
+        <span class="setting-label" id="lb-players">Jugadores</span>
+        <div class="seg" id="seg-players" role="radiogroup" aria-labelledby="lb-players" data-group="players">
+          <button class="opt" id="opt-players-1" type="button" role="radio" aria-checked="true" data-value="1">1</button>
+          <button class="opt" id="opt-players-2" type="button" role="radio" aria-checked="false" data-value="2">2</button>
+        </div>
+
+        <span class="setting-label" id="lb-walls">Paredes</span>
+        <div class="seg" id="seg-walls" role="radiogroup" aria-labelledby="lb-walls" data-group="walls">
+          <button class="opt" id="opt-walls-solid" type="button" role="radio" aria-checked="true" data-value="solid">Sólidas</button>
+          <button class="opt" id="opt-walls-wrap" type="button" role="radio" aria-checked="false" data-value="wrap">Traspasan</button>
+        </div>
+
+        <span class="setting-label" id="lb-speed">Velocidad</span>
+        <div class="seg" id="seg-speed" role="radiogroup" aria-labelledby="lb-speed" data-group="speed">
+          <button class="opt" id="opt-speed-calma" type="button" role="radio" aria-checked="false" data-value="calma">Calma</button>
+          <button class="opt" id="opt-speed-normal" type="button" role="radio" aria-checked="true" data-value="normal">Normal</button>
+          <button class="opt" id="opt-speed-veloz" type="button" role="radio" aria-checked="false" data-value="veloz">Veloz</button>
+        </div>
+
+        <span class="setting-label" id="lb-view">Vista</span>
+        <div class="seg" id="seg-view" role="radiogroup" aria-labelledby="lb-view" data-group="view">
+          <button class="opt" id="opt-view-2d" type="button" role="radio" aria-checked="true" data-value="2d">2D</button>
+          <button class="opt" id="opt-view-3d" type="button" role="radio" aria-checked="false" data-value="3d">3D</button>
+        </div>
+
+        <span class="setting-label" id="lb-sound">Sonido</span>
+        <div class="seg" id="seg-sound" role="radiogroup" aria-labelledby="lb-sound" data-group="sound">
+          <button class="opt" id="opt-sound-on" type="button" role="radio" aria-checked="true" data-value="on">Sí</button>
+          <button class="opt" id="opt-sound-off" type="button" role="radio" aria-checked="false" data-value="off">No</button>
+        </div>
+      </div>
+
+      <button class="btn wide" id="pause-btn" type="button" disabled>Pausa</button>
+
+      <div class="pads" id="pads">
+        <div class="padwrap">
+          <span class="cap" id="cap1" hidden>Jugador 1</span>
+          <div class="dpad" aria-label="Cruz del jugador 1">
+            <button class="pad" id="pad-0-up" type="button" data-p="0" data-dir="up" aria-label="Arriba">&#9650;</button>
+            <button class="pad" id="pad-0-left" type="button" data-p="0" data-dir="left" aria-label="Izquierda">&#9664;</button>
+            <button class="pad" id="pad-0-right" type="button" data-p="0" data-dir="right" aria-label="Derecha">&#9654;</button>
+            <button class="pad" id="pad-0-down" type="button" data-p="0" data-dir="down" aria-label="Abajo">&#9660;</button>
+          </div>
+        </div>
+        <div class="padwrap" id="padwrap2" hidden>
+          <span class="cap">Jugador 2</span>
+          <div class="dpad" aria-label="Cruz del jugador 2">
+            <button class="pad" id="pad-1-up" type="button" data-p="1" data-dir="up" aria-label="Arriba">&#9650;</button>
+            <button class="pad" id="pad-1-left" type="button" data-p="1" data-dir="left" aria-label="Izquierda">&#9664;</button>
+            <button class="pad" id="pad-1-right" type="button" data-p="1" data-dir="right" aria-label="Derecha">&#9654;</button>
+            <button class="pad" id="pad-1-down" type="button" data-p="1" data-dir="down" aria-label="Abajo">&#9660;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <p class="hint" id="hint"></p>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+  var N = 20, CELL = 20;
+  function $(id) { return document.getElementById(id); }
+  var canvas = $('board'), ctx = canvas.getContext('2d'), canvas3d = $('board3d');
+  var app = $('app'), lcd = document.querySelector('.lcd'), fullscreenBtn = $('fullscreen-btn');
+  var css = getComputedStyle(document.documentElement);
+  function token(name) { return css.getPropertyValue(name).trim(); }
+  var LCD = token('--lcd'), GHOST = token('--lcd-dim'), INK = token('--ink'), BTN = token('--btn'), SHELL = token('--shell');
+  var reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  var elH1L = $('h1-l'), elH1V = $('h1-v'), elH2V = $('h2-v'), elH3L = $('h3-l'), elH3V = $('h3-v');
+  var overlay = $('overlay'), ovTitle = $('ov-title'), ovText = $('ov-text'), ovBtn = $('ov-btn');
+  var pauseBtn = $('pause-btn'), elHint = $('hint');
+  var padsBox = $('pads'), padwrap2 = $('padwrap2'), cap1 = $('cap1');
+  var segs = Array.prototype.slice.call(document.querySelectorAll('.seg'));
+  var LOCKED = { players: true, walls: true, speed: true };
+
+  /* ---------- Settings ---------- */
+  var OPTIONS = {
+    players: ['1', '2'], walls: ['solid', 'wrap'], speed: ['calma', 'normal', 'veloz'],
+    view: ['2d', '3d'], sound: ['on', 'off']
+  };
+  var settings = { players: '1', walls: 'solid', speed: 'normal', view: '2d', sound: 'on' };
+  try {
+    var saved = JSON.parse(localStorage.getItem('snake-settings') || '{}');
+    Object.keys(settings).forEach(function (k) {
+      if (typeof saved[k] === 'string' && OPTIONS[k].indexOf(saved[k]) >= 0) settings[k] = saved[k];
+    });
+  } catch (e) {}
+  function saveSettings() {
+    try { localStorage.setItem('snake-settings', JSON.stringify(settings)); } catch (e) {}
+  }
+
+  var SPEEDS = { calma: 150, normal: 105, veloz: 70 };
+  var best = 0;
+  function loadBest() {
+    try { best = parseInt(localStorage.getItem('snake-best-' + settings.walls), 10) || 0; } catch (e) { best = 0; }
+  }
+  function saveBest() {
+    try { localStorage.setItem('snake-best-' + settings.walls, String(best)); } catch (e) {}
+  }
+  loadBest();
+
+  /* ---------- Sound ---------- */
+  var audio = null;
+  function ensureAudio() {
+    if (!audio) {
+      try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { audio = null; }
+    }
+    if (audio && audio.state === 'suspended') { try { audio.resume(); } catch (e) {} }
+  }
+  function beep(freq, dur, type, vol, slideTo, when) {
+    if (settings.sound !== 'on' || !audio) return;
+    var t0 = audio.currentTime + (when || 0);
+    var o = audio.createOscillator(), g = audio.createGain();
+    o.type = type || 'square';
+    o.frequency.setValueAtTime(freq, t0);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
+    g.gain.setValueAtTime(vol || 0.05, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(audio.destination);
+    o.start(t0); o.stop(t0 + dur + 0.02);
+  }
+  function sfxEat() { beep(660, 0.07, 'square', 0.05); beep(990, 0.09, 'square', 0.05, 0, 0.06); }
+  function sfxLevel() { [523, 659, 784, 1047].forEach(function (f, i) { beep(f, 0.1, 'square', 0.05, 0, i * 0.08); }); }
+  function sfxStart() { beep(440, 0.08, 'square', 0.05); beep(660, 0.12, 'square', 0.05, 0, 0.09); }
+  function sfxPause() { beep(330, 0.07, 'triangle', 0.07); }
+  function sfxOver() { beep(320, 0.55, 'sawtooth', 0.07, 70); }
+  function sfxWin() { [523, 659, 784, 1047, 1319].forEach(function (f, i) { beep(f, 0.14, 'square', 0.05, 0, i * 0.1); }); }
+
+  /* ---------- Game state ---------- */
+  var players = [];
+  var food = null, foods = 0, state = 'ready', timer = null, result = null, newRecord = false, startedAt = 0;
+
+  function makePlayer(id, cells, dir) {
+    return { id: id, snake: cells, dir: dir, queue: [], score: 0, alive: true, meshes: [] };
+  }
+
+  function reset() {
+    clear3d();
+    if (settings.players === '2') {
+      players = [
+        makePlayer(0, [{ x: 4, y: 5 }, { x: 3, y: 5 }, { x: 2, y: 5 }], { x: 1, y: 0 }),
+        makePlayer(1, [{ x: 15, y: 14 }, { x: 16, y: 14 }, { x: 17, y: 14 }], { x: -1, y: 0 })
+      ];
+    } else {
+      players = [makePlayer(0, [{ x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 }], { x: 1, y: 0 })];
+    }
+    foods = 0;
+    newRecord = false;
+    result = null;
+    placeFood();
+  }
+
+  function placeFood() {
+    var taken = {};
+    players.forEach(function (p) {
+      p.snake.forEach(function (s) { taken[s.x + ',' + s.y] = true; });
+    });
+    var free = [];
+    for (var y = 0; y < N; y++) {
+      for (var x = 0; x < N; x++) {
+        if (!taken[x + ',' + y]) free.push({ x: x, y: y });
+      }
+    }
+    food = free.length ? free[Math.floor(Math.random() * free.length)] : null;
+  }
+
+  function delay() {
+    return Math.max(55, SPEEDS[settings.speed] - Math.floor(foods / 5) * 8);
+  }
+
+  function updateHud() {
+    elH2V.textContent = 1 + Math.floor(foods / 5);
+    if (players.length > 1) {
+      elH1L.textContent = 'J1'; elH1V.textContent = players[0].score;
+      elH3L.textContent = 'J2'; elH3V.textContent = players[1].score;
+    } else {
+      elH1L.textContent = 'Puntos'; elH1V.textContent = players[0].score;
+      elH3L.textContent = 'Récord'; elH3V.textContent = best;
+    }
+  }
+
+  function updateHint() {
+    var duo = settings.players === '2';
+    elHint.innerHTML = duo
+      ? 'Jugador 1 (sólido): flechas. Jugador 2 (hueco, rojo en 3D): <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>. Gana quien sobreviva. <kbd>Enter</kbd> empieza y <kbd>Espacio</kbd> pausa.'
+      : 'Muévete con las flechas o <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>, o desliza el dedo sobre la pantalla. <kbd>Enter</kbd> empieza y <kbd>Espacio</kbd> pausa. Cada 5 cruces sube el nivel y la serpiente se acelera.';
+    padwrap2.hidden = !duo;
+    cap1.hidden = !duo;
+    padsBox.classList.toggle('duo', duo);
+  }
+
+  function syncControls() {
+    var playing = state === 'running' || state === 'paused';
+    segs.forEach(function (seg) {
+      var locked = LOCKED[seg.getAttribute('data-group')] && playing;
+      Array.prototype.forEach.call(seg.querySelectorAll('.opt'), function (b) {
+        var threeMissing = b.id === 'opt-view-3d' && !T && !window.THREE;
+        b.disabled = !!locked || threeMissing;
+      });
+    });
+    pauseBtn.disabled = !playing;
+    pauseBtn.textContent = state === 'paused' ? 'Seguir' : 'Pausa';
+  }
+
+  function syncSettingsUI() {
+    segs.forEach(function (seg) {
+      var v = settings[seg.getAttribute('data-group')];
+      Array.prototype.forEach.call(seg.querySelectorAll('.opt'), function (b) {
+        b.setAttribute('aria-checked', b.getAttribute('data-value') === v ? 'true' : 'false');
+      });
+    });
+  }
+
+  function showOverlay(kind) {
+    var t, p, b = 'Otra vez';
+    var score0 = players[0].score;
+    if (kind === 'paused') { t = 'Pausa'; p = 'Tu serpiente espera.'; b = 'Seguir'; }
+    else if (kind === 'over') { t = 'Fin del juego'; p = 'Hiciste ' + score0 + ' puntos.' + (newRecord ? ' ¡Nuevo récord!' : ''); }
+    else if (kind === 'win') { t = '¡Ganaste!'; p = 'Llenaste todo el tablero con ' + score0 + ' puntos.'; }
+    else if (kind === 'duo') { t = result.title; p = result.text; }
+    else {
+      t = 'Lista';
+      b = 'Jugar';
+      if (players.length > 1) p = 'Dos serpientes, un tablero. Gana quien sobreviva.';
+      else p = 'Come las cruces para crecer. ' + (settings.walls === 'wrap'
+        ? 'Las paredes te llevan al otro lado, cuida tu cola.'
+        : 'No toques las paredes ni tu cola.');
+    }
+    ovTitle.textContent = t;
+    var hasKeyboard = !!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches);
+    if (hasKeyboard) {
+      p += kind === 'paused' ? ' Pulsa Enter para seguir.'
+        : kind === 'ready' ? ' Pulsa Enter para empezar.'
+        : ' Pulsa Enter para jugar otra vez.';
+    }
+    ovText.textContent = p;
+    ovBtn.textContent = b;
+    overlay.hidden = false;
+  }
+
+  /* ---------- 2D drawing ---------- */
+  function draw() {
+    if (settings.view === '3d' && T) return;
+    ctx.fillStyle = LCD;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = GHOST;
+    for (var gy = 0; gy < N; gy++) {
+      for (var gx = 0; gx < N; gx++) {
+        ctx.fillRect(gx * CELL + 7, gy * CELL + 7, 6, 6);
+      }
+    }
+
+    ctx.fillStyle = INK;
+    if (food) {
+      var fx = food.x * CELL, fy = food.y * CELL;
+      ctx.fillRect(fx + 8, fy + 3, 4, 14);
+      ctx.fillRect(fx + 3, fy + 8, 14, 4);
+    }
+
+    players.forEach(function (p) {
+      p.snake.forEach(function (s, i) {
+        if (p.id === 1 && i > 0) {
+          ctx.strokeStyle = INK;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(s.x * CELL + 2, s.y * CELL + 2, CELL - 4, CELL - 4);
+        } else {
+          ctx.fillStyle = INK;
+          ctx.fillRect(s.x * CELL + 1, s.y * CELL + 1, CELL - 2, CELL - 2);
+        }
+      });
+      var h = p.snake[0];
+      var cx = h.x * CELL + 10 + p.dir.x * 3;
+      var cy = h.y * CELL + 10 + p.dir.y * 3;
+      var px = -p.dir.y, py = p.dir.x;
+      ctx.fillStyle = LCD;
+      ctx.fillRect(Math.round(cx + px * 4 - 1.5), Math.round(cy + py * 4 - 1.5), 3, 3);
+      ctx.fillRect(Math.round(cx - px * 4 - 1.5), Math.round(cy - py * 4 - 1.5), 3, 3);
+    });
+  }
+
+  /* ---------- Game loop ---------- */
+  function schedule() {
+    clearTimeout(timer);
+    timer = setTimeout(tick, delay());
+  }
+
+  function tick() {
+    if (state !== 'running') return;
+    var wrap = settings.walls === 'wrap';
+
+    var info = players.map(function (p) {
+      if (p.queue.length) p.dir = p.queue.shift();
+      var h = { x: p.snake[0].x + p.dir.x, y: p.snake[0].y + p.dir.y };
+      var dead = false;
+      if (wrap) { h.x = (h.x + N) % N; h.y = (h.y + N) % N; }
+      else if (h.x < 0 || h.y < 0 || h.x >= N || h.y >= N) dead = true;
+      var eat = !dead && !!food && h.x === food.x && h.y === food.y;
+      return { p: p, head: h, dead: dead, eat: eat };
+    });
+
+    info.forEach(function (a) {
+      if (a.dead) return;
+      info.forEach(function (b) {
+        var limit = b.eat ? b.p.snake.length : b.p.snake.length - 1;
+        for (var i = 0; i < limit; i++) {
+          var s = b.p.snake[i];
+          if (s.x === a.head.x && s.y === a.head.y) { a.dead = true; return; }
+        }
+        if (b !== a && b.head.x === a.head.x && b.head.y === a.head.y) a.dead = true;
+      });
+    });
+
+    var anyDead = false, ate = false;
+    info.forEach(function (a) {
+      if (a.dead) { a.p.alive = false; anyDead = true; return; }
+      a.p.snake.unshift(a.head);
+      if (a.eat) { a.p.score += 10; foods += 1; ate = true; }
+      else a.p.snake.pop();
+    });
+
+    if (ate) {
+      var eaten = food;
+      placeFood();
+      burst3d(eaten);
+      if (foods % 5 === 0) { sfxLevel(); kick3d(); } else { sfxEat(); }
+    }
+
+    updateHud();
+    draw();
+    if (anyDead || !food) { finish(); return; }
+    schedule();
+  }
+
+  function finish() {
+    clearTimeout(timer);
+    state = 'over';
+    var duo = players.length > 1;
+    var kind;
+    if (!duo) {
+      var p0 = players[0];
+      if (p0.score > best) { best = p0.score; newRecord = p0.score > 0; saveBest(); }
+      kind = p0.alive ? 'win' : 'over';
+    } else {
+      var a = players[0], b = players[1], w;
+      if (a.alive && !b.alive) w = 0;
+      else if (!a.alive && b.alive) w = 1;
+      else w = a.score > b.score ? 0 : (b.score > a.score ? 1 : -1);
+      result = {
+        title: w < 0 ? 'Empate' : 'Gana J' + (w + 1),
+        text: 'Jugador 1: ' + a.score + ' · Jugador 2: ' + b.score
+      };
+      kind = 'duo';
+    }
+    players.forEach(function (p) { if (!p.alive) tumble3d(p); });
+    updateHud();
+    syncControls();
+    draw();
+    showOverlay(kind);
+    if (kind === 'win') sfxWin(); else sfxOver();
+  }
+
+  function start() {
+    ensureAudio();
+    reset();
+    startedAt = Date.now();
+    state = 'running';
+    overlay.hidden = true;
+    updateHud();
+    syncControls();
+    draw();
+    sfxStart();
+    schedule();
+  }
+
+  function toReady() {
+    clearTimeout(timer);
+    state = 'ready';
+    reset();
+    updateHud();
+    updateHint();
+    syncControls();
+    draw();
+    showOverlay('ready');
+  }
+
+  function pause() {
+    if (state !== 'running' || Date.now() - startedAt < 300) return;
+    clearTimeout(timer);
+    state = 'paused';
+    sfxPause();
+    syncControls();
+    showOverlay('paused');
+  }
+
+  function resume() {
+    if (state !== 'paused') return;
+    ensureAudio();
+    state = 'running';
+    overlay.hidden = true;
+    sfxPause();
+    syncControls();
+    schedule();
+  }
+
+  function primary() {
+    if (state === 'running') pause();
+    else if (state === 'paused') resume();
+    else start();
+  }
+
+  /* ---------- Input ---------- */
+  function turn(p, dx, dy) {
+    var last = p.queue.length ? p.queue[p.queue.length - 1] : p.dir;
+    if (last.x === dx && last.y === dy) return;
+    if (last.x === -dx && last.y === -dy) return;
+    if (p.queue.length < 2) p.queue.push({ x: dx, y: dy });
+  }
+
+  function steer(pi, dx, dy) {
+    if (pi >= players.length) return;
+    if (state === 'running') turn(players[pi], dx, dy);
+  }
+
+  var KEYS = {
+    arrowup: [0, 0, -1], arrowdown: [0, 0, 1], arrowleft: [0, -1, 0], arrowright: [0, 1, 0],
+    w: [1, 0, -1], s: [1, 0, 1], a: [1, -1, 0], d: [1, 1, 0]
+  };
+  var PADS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+
+  document.addEventListener('keydown', function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    var k = (e.key || '').toLowerCase();
+    if (KEYS[k]) {
+      e.preventDefault();
+      var pi = players.length === 1 ? 0 : KEYS[k][0];
+      steer(pi, KEYS[k][1], KEYS[k][2]);
+      return;
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (e.repeat) return;
+      if (state === 'paused') resume();
+      else if (state !== 'running') start();
+      return;
+    }
+    if (e.code === 'Space' && (state === 'running' || state === 'paused')) {
+      e.preventDefault();
+      if (e.repeat) return;
+      primary();
+    }
+  });
+
+  var touchStart = null;
+  var wrapEl = $('board-wrap');
+  wrapEl.addEventListener('touchstart', function (e) {
+    var t = e.changedTouches[0];
+    touchStart = { x: t.clientX, y: t.clientY };
+  }, { passive: true });
+  wrapEl.addEventListener('touchend', function (e) {
+    if (!touchStart) return;
+    var t = e.changedTouches[0];
+    var dx = t.clientX - touchStart.x, dy = t.clientY - touchStart.y;
+    touchStart = null;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
+    if (Math.abs(dx) > Math.abs(dy)) steer(0, dx > 0 ? 1 : -1, 0);
+    else steer(0, 0, dy > 0 ? 1 : -1);
+  }, { passive: true });
+
+  Array.prototype.forEach.call(document.querySelectorAll('.pad'), function (btn) {
+    var v = PADS[btn.getAttribute('data-dir')];
+    var pi = parseInt(btn.getAttribute('data-p'), 10);
+    btn.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      steer(pi, v[0], v[1]);
+    });
+    btn.addEventListener('click', function (e) {
+      if (e.detail === 0) steer(pi, v[0], v[1]);
+    });
+  });
+
+  ovBtn.addEventListener('click', function () {
+    if (state === 'paused') resume();
+    else if (state !== 'running') start();
+    ovBtn.blur();
+  });
+  pauseBtn.addEventListener('click', function () { primary(); pauseBtn.blur(); });
+
+  function syncFullscreenButton() {
+    var active = document.fullscreenElement === lcd;
+    fullscreenBtn.textContent = active ? 'Salir de pantalla completa' : 'Pantalla completa';
+    fullscreenBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
+  }
+
+  fullscreenBtn.disabled = !lcd.requestFullscreen || !document.exitFullscreen;
+  fullscreenBtn.addEventListener('click', function () {
+    var action = document.fullscreenElement === lcd
+      ? document.exitFullscreen()
+      : lcd.requestFullscreen();
+    action.catch(function (error) {
+      fullscreenBtn.title = 'No se pudo cambiar a pantalla completa.';
+      console.error('No se pudo cambiar a pantalla completa:', error);
+    });
+  });
+  document.addEventListener('fullscreenchange', syncFullscreenButton);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && document.fullscreenElement === lcd) {
+      document.exitFullscreen().catch(function (error) {
+        console.error('No se pudo salir de pantalla completa:', error);
+      });
+    }
+  });
+
+  segs.forEach(function (seg) {
+    var group = seg.getAttribute('data-group');
+    Array.prototype.forEach.call(seg.querySelectorAll('.opt'), function (b) {
+      b.addEventListener('click', function () {
+        if (b.disabled) return;
+        var val = b.getAttribute('data-value');
+        if (settings[group] === val) return;
+        settings[group] = val;
+        saveSettings();
+        syncSettingsUI();
+        onSettingChanged(group);
+      });
+    });
+  });
+
+  function onSettingChanged(group) {
+    if (group === 'players') {
+      toReady();
+    } else if (group === 'walls') {
+      loadBest();
+      setWalls3d();
+      toReady();
+    } else if (group === 'view') {
+      applyView();
+    } else if (group === 'sound') {
+      if (settings.sound === 'on') { ensureAudio(); beep(660, 0.08, 'square', 0.05); }
+    }
+  }
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) pause();
+  });
+
+  /* ---------- 3D view (Three.js) ---------- */
+  var T = null;
+
+  function init3d() {
+    if (T) return true;
+    if (!window.THREE) return false;
+    try {
+      var renderer = new THREE.WebGLRenderer({ canvas: canvas3d, antialias: true });
+      renderer.setClearColor(new THREE.Color(LCD));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      var scene = new THREE.Scene();
+      var camera = new THREE.PerspectiveCamera(40, 1, 0.1, 200);
+      scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+      var sun = new THREE.DirectionalLight(0xffffff, 0.8);
+      sun.position.set(-10, 25, 12);
+      scene.add(sun);
+
+      var slab = new THREE.Mesh(
+        new THREE.BoxGeometry(N + 2, 1, N + 2),
+        new THREE.MeshLambertMaterial({ color: new THREE.Color(SHELL) })
+      );
+      slab.position.y = -0.52;
+      scene.add(slab);
+
+      var plane = new THREE.Mesh(
+        new THREE.PlaneGeometry(N, N),
+        new THREE.MeshLambertMaterial({ color: new THREE.Color(LCD) })
+      );
+      plane.rotation.x = -Math.PI / 2;
+      scene.add(plane);
+
+      var grid = new THREE.GridHelper(N, N, new THREE.Color(INK), new THREE.Color(INK));
+      grid.position.y = 0.01;
+      grid.material.transparent = true;
+      grid.material.opacity = 0.16;
+      scene.add(grid);
+
+      function strip(len, h, th, x, z, color) {
+        var horizontal = Math.abs(x) < 0.001;
+        var m = new THREE.Mesh(
+          new THREE.BoxGeometry(horizontal ? len : th, h, horizontal ? th : len),
+          new THREE.MeshLambertMaterial({ color: new THREE.Color(color) })
+        );
+        m.position.set(x, h / 2, z);
+        return m;
+      }
+      var off = N / 2 + 0.25;
+      var wallGroup = new THREE.Group();
+      wallGroup.add(strip(N + 1, 0.9, 0.5, 0, -off, '#3a4d36'));
+      wallGroup.add(strip(N + 1, 0.9, 0.5, 0, off, '#3a4d36'));
+      wallGroup.add(strip(N, 0.9, 0.5, -off, 0, '#3a4d36'));
+      wallGroup.add(strip(N, 0.9, 0.5, off, 0, '#3a4d36'));
+      scene.add(wallGroup);
+      var edgeGroup = new THREE.Group();
+      edgeGroup.add(strip(N + 1, 0.06, 0.25, 0, -off, '#e1ebc2'));
+      edgeGroup.add(strip(N + 1, 0.06, 0.25, 0, off, '#e1ebc2'));
+      edgeGroup.add(strip(N, 0.06, 0.25, -off, 0, '#e1ebc2'));
+      edgeGroup.add(strip(N, 0.06, 0.25, off, 0, '#e1ebc2'));
+      scene.add(edgeGroup);
+
+      var foodMesh = new THREE.Mesh(
+        new THREE.OctahedronGeometry(0.42),
+        new THREE.MeshLambertMaterial({ color: new THREE.Color(BTN), emissive: new THREE.Color('#5a1409') })
+      );
+      foodMesh.visible = false;
+      scene.add(foodMesh);
+
+      T = {
+        renderer: renderer, scene: scene, camera: camera,
+        box: new THREE.BoxGeometry(0.9, 0.7, 0.9),
+        eyeGeo: new THREE.SphereGeometry(0.09, 8, 8),
+        eyeMat: new THREE.MeshBasicMaterial({ color: new THREE.Color('#f4f7e8') }),
+        mats: [
+          { body: new THREE.MeshLambertMaterial({ color: new THREE.Color('#233021') }),
+            head: new THREE.MeshLambertMaterial({ color: new THREE.Color('#3f6b38') }) },
+          { body: new THREE.MeshLambertMaterial({ color: new THREE.Color('#9c3b27') }),
+            head: new THREE.MeshLambertMaterial({ color: new THREE.Color('#d95f45') }) }
+        ],
+        wallGroup: wallGroup, edgeGroup: edgeGroup, foodMesh: foodMesh,
+        foodRef: null, foodT: 0,
+        live: [], pool: [], shake: 0, kick: 0, last: 0, raf: 0
+      };
+      setWalls3d();
+
+      if (window.ResizeObserver) new ResizeObserver(resize3d).observe(canvas3d);
+      else window.addEventListener('resize', resize3d);
+      return true;
+    } catch (err) {
+      T = null;
+      return false;
+    }
+  }
+
+  function resize3d() {
+    if (!T) return;
+    var w = Math.max(1, Math.round(canvas3d.clientWidth));
+    T.renderer.setSize(w, w, false);
+    T.camera.aspect = 1;
+    T.camera.updateProjectionMatrix();
+  }
+
+  function setWalls3d() {
+    if (!T) return;
+    T.wallGroup.visible = settings.walls === 'solid';
+    T.edgeGroup.visible = settings.walls === 'wrap';
+  }
+
+  function applyView() {
+    var want3d = settings.view === '3d';
+    if (want3d && !init3d()) {
+      settings.view = '2d';
+      saveSettings();
+      syncSettingsUI();
+      want3d = false;
+    }
+    canvas.hidden = want3d;
+    canvas3d.hidden = !want3d;
+    if (want3d) {
+      resize3d();
+      if (!T.raf) { T.last = performance.now(); T.raf = requestAnimationFrame(frame); }
+    } else {
+      draw();
+    }
+    syncControls();
+  }
+
+  function makeSeg(p, i) {
+    var mats = T.mats[p.id];
+    var m = new THREE.Mesh(T.box, i === 0 ? mats.head : mats.body);
+    if (i === 0) {
+      var e1 = new THREE.Mesh(T.eyeGeo, T.eyeMat), e2 = new THREE.Mesh(T.eyeGeo, T.eyeMat);
+      m.add(e1); m.add(e2);
+      m.userData.eyes = [e1, e2];
+    }
+    return m;
+  }
+
+  function clear3d() {
+    if (!T) return;
+    players.forEach(function (p) {
+      p.meshes.forEach(function (m) { T.scene.remove(m); });
+      p.meshes = [];
+    });
+  }
+
+  function tumble3d(p) {
+    if (!T || settings.view !== '3d') return;
+    p.meshes.forEach(function (m) {
+      m.userData.vel = new THREE.Vector3((Math.random() - 0.5) * 4, 3 + Math.random() * 4, (Math.random() - 0.5) * 4);
+      m.userData.spin = new THREE.Vector3((Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12);
+    });
+    if (!reduceMotion) T.shake = 0.6;
+  }
+
+  function kick3d() {
+    if (T && settings.view === '3d' && !reduceMotion) T.kick = 1;
+  }
+
+  function burst3d(c) {
+    if (!T || settings.view !== '3d' || reduceMotion || !c) return;
+    for (var i = 0; i < 14; i++) {
+      var pm = T.pool.pop();
+      if (!pm) {
+        pm = new THREE.Mesh(
+          new THREE.BoxGeometry(0.16, 0.16, 0.16),
+          new THREE.MeshBasicMaterial({ color: new THREE.Color(BTN), transparent: true })
+        );
+      }
+      pm.position.set(c.x - N / 2 + 0.5, 0.6, c.y - N / 2 + 0.5);
+      pm.userData.vx = (Math.random() - 0.5) * 6;
+      pm.userData.vy = 2 + Math.random() * 4;
+      pm.userData.vz = (Math.random() - 0.5) * 6;
+      pm.userData.life = 0.7;
+      pm.material.opacity = 1;
+      T.scene.add(pm);
+      T.live.push(pm);
+    }
+  }
+
+  function frame(now) {
+    T.raf = 0;
+    if (settings.view !== '3d') return;
+    var dt = Math.min(0.05, (now - T.last) / 1000 || 0.016);
+    T.last = now;
+    var t = now / 1000;
+    var k = 1 - Math.exp(-dt * 16);
+
+    players.forEach(function (p) {
+      while (p.meshes.length < p.snake.length) {
+        var i = p.meshes.length;
+        var ref = p.meshes[i - 1];
+        var m = makeSeg(p, i);
+        if (ref) m.position.copy(ref.position);
+        else m.position.set(p.snake[i].x - N / 2 + 0.5, 0.4, p.snake[i].y - N / 2 + 0.5);
+        T.scene.add(m);
+        p.meshes.push(m);
+      }
+      while (p.meshes.length > p.snake.length) T.scene.remove(p.meshes.pop());
+
+      p.meshes.forEach(function (m, i) {
+        var v = m.userData.vel;
+        if (v) {
+          v.y -= 16 * dt;
+          m.position.x += v.x * dt;
+          m.position.y += v.y * dt;
+          m.position.z += v.z * dt;
+          m.rotation.x += m.userData.spin.x * dt;
+          m.rotation.y += m.userData.spin.y * dt;
+          m.rotation.z += m.userData.spin.z * dt;
+          if (m.position.y < 0.4 && v.y < 0) {
+            m.position.y = 0.4;
+            v.y *= -0.35;
+            v.x *= 0.7; v.z *= 0.7;
+            m.userData.spin.multiplyScalar(0.7);
+          }
+          return;
+        }
+        var c = p.snake[i];
+        var tx = c.x - N / 2 + 0.5, tz = c.y - N / 2 + 0.5;
+        if (Math.abs(tx - m.position.x) > 2.5 || Math.abs(tz - m.position.z) > 2.5) {
+          m.position.x = tx; m.position.z = tz;
+        } else {
+          m.position.x += (tx - m.position.x) * k;
+          m.position.z += (tz - m.position.z) * k;
+        }
+        m.position.y = 0.4 + ((p.alive && !reduceMotion) ? Math.sin(t * 7 - i * 0.7) * 0.05 : 0);
+      });
+
+      var hm = p.meshes[0];
+      if (hm && hm.userData.eyes) {
+        var ex = -p.dir.y, ez = p.dir.x;
+        hm.userData.eyes[0].position.set(p.dir.x * 0.15 + ex * 0.22, 0.36, p.dir.y * 0.15 + ez * 0.22);
+        hm.userData.eyes[1].position.set(p.dir.x * 0.15 - ex * 0.22, 0.36, p.dir.y * 0.15 - ez * 0.22);
+      }
+    });
+
+    var fm = T.foodMesh;
+    if (food) {
+      if (T.foodRef !== food) { T.foodRef = food; T.foodT = t; }
+      var s = Math.min(1, (t - T.foodT) / 0.35);
+      s = 1 + 2.70158 * Math.pow(s - 1, 3) + 1.70158 * Math.pow(s - 1, 2);
+      fm.visible = true;
+      fm.scale.setScalar(Math.max(0.001, s));
+      fm.position.set(food.x - N / 2 + 0.5, 0.6 + (reduceMotion ? 0 : Math.sin(t * 3) * 0.1), food.y - N / 2 + 0.5);
+      if (!reduceMotion) fm.rotation.y = t * 1.6;
+    } else {
+      fm.visible = false;
+    }
+
+    for (var j = T.live.length - 1; j >= 0; j--) {
+      var pm = T.live[j], d = pm.userData;
+      d.life -= dt;
+      if (d.life <= 0) {
+        T.scene.remove(pm);
+        T.live.splice(j, 1);
+        T.pool.push(pm);
+        continue;
+      }
+      d.vy -= 14 * dt;
+      pm.position.x += d.vx * dt;
+      pm.position.y += d.vy * dt;
+      pm.position.z += d.vz * dt;
+      pm.material.opacity = d.life / 0.7;
+    }
+
+    var sway = reduceMotion ? 0 : Math.sin(t * 0.35) * 3.2;
+    var sx = 0, sz = 0;
+    if (T.shake > 0) {
+      T.shake -= dt;
+      var amp = 0.5 * Math.min(1, Math.max(0, T.shake) * 2);
+      sx = (Math.random() - 0.5) * amp;
+      sz = (Math.random() - 0.5) * amp;
+    }
+    T.kick *= Math.exp(-dt * 6);
+    T.camera.position.set(sway + sx, 26, 22.5 + sz);
+    T.camera.lookAt(0, 0, 0.5);
+    T.camera.fov = 40 + T.kick * 7;
+    T.camera.updateProjectionMatrix();
+
+    T.renderer.render(T.scene, T.camera);
+    T.raf = requestAnimationFrame(frame);
+  }
+
+  /* ---------- Boot ---------- */
+  if (settings.view === '3d' && !init3d()) settings.view = '2d';
+  syncSettingsUI();
+  reset();
+  updateHud();
+  updateHint();
+  syncControls();
+  applyView();
+  draw();
+  showOverlay('ready');
+})();
+</script>
+</body>
+</html>
