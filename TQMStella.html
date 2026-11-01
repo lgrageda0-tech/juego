@@ -185,32 +185,46 @@
         flex-wrap: wrap;
       }
 
-      .kiss-button {
-        display: inline-flex;
-        min-height: 48px;
+      .quick-kisses {
+        position: absolute;
+        top: calc(50% + min(42vw, 204px) + 1.5rem);
+        left: 50%;
+        display: flex;
+        width: 76px;
+        height: 76px;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 0.6rem;
-        padding: 0.75rem 1.15rem;
-        border: 1px solid #d8b15c;
-        border-radius: 999px;
-        color: #fff3d3;
-        background: linear-gradient(135deg, #a32632, #681523);
-        box-shadow: 0 5px 14px rgba(88, 22, 29, 0.23);
-        font: inherit;
-        font-weight: 700;
+        gap: 0.1rem;
+        padding: 0;
+        transform: translateX(-50%);
+        border: 1px solid rgba(255, 190, 210, 0.5);
+        border-radius: 50%;
+        color: #fff2f7;
+        background: radial-gradient(circle at 35% 25%, #572035, #220b18 75%);
+        box-shadow: 0 0 22px rgba(255, 83, 135, 0.35);
         cursor: pointer;
-        transition: transform 160ms ease, box-shadow 160ms ease;
+        transition: box-shadow 160ms ease, background 160ms ease;
+        -webkit-tap-highlight-color: transparent;
       }
 
-      .kiss-button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 18px rgba(88, 22, 29, 0.3);
+      .quick-kisses:hover {
+        background: radial-gradient(circle at 35% 25%, #743047, #2d0d1d 75%);
+        box-shadow: 0 0 30px rgba(255, 110, 157, 0.58);
       }
 
-      .kiss-button-heart {
-        color: #ffd3d6;
-        font-size: 1.25rem;
+      .quick-kisses-heart {
+        color: #ff91b3;
+        font-size: 1.9rem;
+        line-height: 1;
+        text-shadow: 0 0 15px rgba(255, 67, 125, 0.8);
+        animation: heartbeat 1.8s ease-in-out infinite;
+      }
+
+      .quick-kisses-label {
+        font-size: 0.63rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
       }
 
       .close-letter {
@@ -364,9 +378,11 @@
         }
       }
 
-        @media (max-width: 420px) {
-          .letter-actions {
-            gap: 0.35rem;
+        @media (min-width: 700px) {
+          .quick-kisses {
+            top: 50%;
+            left: calc(50% + 250px);
+            transform: translateY(-50%);
           }
         }
 
@@ -402,6 +418,10 @@
         <span class="sparkle sparkle-one" aria-hidden="true"></span>
         <span class="sparkle sparkle-two" aria-hidden="true"></span>
       </button>
+      <button class="quick-kisses" id="send-kisses" type="button" aria-label="Llenar la pantalla de besos">
+        <span class="quick-kisses-heart" aria-hidden="true">♥</span>
+        <span class="quick-kisses-label" aria-hidden="true">Besitos</span>
+      </button>
     </main>
     <dialog class="letter-dialog" id="letter-dialog" aria-labelledby="letter-title">
       <article class="letter-paper">
@@ -411,11 +431,6 @@
         <p class="letter-copy">Eres una persona muy especial para mí, quiero que se den las maneras que se deba hacer, quiero tener buenos momentos contigo y estar al momento que ocupes.</p>
         <p class="letter-signature">Con cariño, Yael</p>
         <div class="letter-actions">
-          <button class="kiss-button" id="send-kisses" type="button">
-            <span class="kiss-button-heart" aria-hidden="true">♥</span>
-            Llenar de besos
-            <span class="kiss-button-heart" aria-hidden="true">♥</span>
-          </button>
           <button class="close-letter" id="close-letter" type="button">Cerrar</button>
         </div>
       </article>
